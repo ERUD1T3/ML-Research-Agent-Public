@@ -49,6 +49,7 @@ class AgentMemory:
         self.Session = sessionmaker(bind=self.engine)
 
         # Initialize sentence transformer for encoding
+        # TODO: is this embedding compatible with OAI and Anthropic?
         self.encoder = SentenceTransformer("all-MiniLM-L6-v2")
 
     def save_conversation_memory(

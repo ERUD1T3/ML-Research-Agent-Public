@@ -1,21 +1,20 @@
 import os
-from dotenv import load_dotenv
-from datetime import datetime, timedelta
 import traceback
+from datetime import datetime
 
+from dotenv import load_dotenv
 from rich import print
+from rich.columns import Columns
+from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-from rich.console import Console
-from rich.columns import Columns
 
 from agent.memory import AgentMemory
-from agent.tool_registry import Tool, worker_action_map
-from agent.memory import Base
-from agent.tool_registry import all_tools
-from agent.prompts import get_worker_system_prompt, get_worker_prompt
 from agent.models.anthropic import AnthropicModel
 from agent.models.openai import OpenAIModel
+from agent.prompts import get_worker_system_prompt, get_worker_prompt
+from agent.tool_registry import Tool, worker_action_map
+from agent.tool_registry import all_tools
 
 load_dotenv()
 console = Console()
@@ -23,13 +22,13 @@ console = Console()
 
 class Worker:
     def __init__(
-        self,
-        user_id=int,
-        run_id=int,
-        user_query=str,
-        plan=str,
-        worker_number=int,
-        provider=str,
+            self,
+            user_id=int,
+            run_id=int,
+            user_query=str,
+            plan=str,
+            worker_number=int,
+            provider=str,
     ) -> None:
         self.user_id = user_id
         self.run_id = run_id
@@ -47,8 +46,7 @@ class Worker:
         self.make_directory(self.run_id)
 
         self.memory = AgentMemory()
-        
-        
+
     def make_directory(self, work_dir):
         work_dir = f"./{work_dir}"
         if not os.path.exists(work_dir):
@@ -66,11 +64,11 @@ class Worker:
         return f"[blue] Total Tokens: {sum(self.num_tokens)} --> Previous Output: {content}"
 
     def run_subtask(
-        self,
-        previous_subtask_attempt,
-        previous_subtask_output,
-        previous_subtask_errors,
-        elapsed_time,
+            self,
+            previous_subtask_attempt,
+            previous_subtask_output,
+            previous_subtask_errors,
+            elapsed_time,
     ) -> dict:
         memories = self.memory.get_conversation_memory(self.run_id)
 
@@ -103,7 +101,7 @@ class Worker:
                         """
                     )
 
-            if self.agent_model == "openai":
+            if self.agent_model == "openai": 
                 (
                     response_data,
                     total_tokens,
@@ -159,7 +157,7 @@ class Worker:
                     # If val is a list, iterate through the list and check each item
                     elif isinstance(val, list):
                         if all(
-                            k in response_data for k in val
+                                k in response_data for k in val
                         ):  # All keys in the list must be in response_data
                             # print(f"Action {key} is applicable with {val}")
                             tool_output = Tool(

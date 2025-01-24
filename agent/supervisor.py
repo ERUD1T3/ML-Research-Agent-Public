@@ -19,7 +19,7 @@ class Supervisor:
         input: task, instructions
         output: final_command
         """
-        self.agent_model = "openai"
+        self.agent_model = "openai" # defaulted to openai
         self.encoding = tiktoken.get_encoding("cl100k_base")
         self.oai_client = OpenAI(api_key=os.getenv("OPENAI"))
         self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC"))

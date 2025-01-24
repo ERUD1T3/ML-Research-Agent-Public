@@ -2,6 +2,7 @@ import os
 
 
 def get_supervisor_system_prompt():
+    # TODO: the list of tools should be dynamic, not hardcoded
     supervisor_system_prompt = """
     You are a professional-level decision-making supervisor tasked with generating plans for AI agents to complete tasks. Key points:
 
@@ -31,6 +32,7 @@ def get_supervisor_system_prompt():
 
 
 def get_worker_system_prompt(run_number):
+    # TODO: the list of tools should be dynamic, not hardcoded
     worker_system_prompt = f"""
     You are a highly capable AI agent researcher. Your task is to complete a given goal efficiently and effectively. Key points:
 
