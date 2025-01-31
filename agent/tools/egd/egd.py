@@ -61,7 +61,7 @@ class EGD:
         self.leaderboard: List[int] = list(range(population_size))
         self.last_ready: List[int] = [0] * population_size
         self.generations = generations
-        self.epochs = 10
+        self.epochs = 1000
         self.debug = debug
 
 
@@ -258,7 +258,7 @@ class EGD:
         # Train for self.epochs
         for epoch in range(self.epochs):
             # Perform training step and get loss
-            total_loss = net.training_step(self.training, batch_size=32)
+            total_loss = net.training_step(self.training, batch_size=25000)
             # Print progress
             print(f'Net #{net.net_id} | Epoch {epoch+1} | Loss: {total_loss:.4f}')
 

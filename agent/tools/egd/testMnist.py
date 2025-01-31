@@ -7,8 +7,8 @@ def main():
     '''main of the program'''
 
     debugging = True
-    population_size = 3 # population size, 80 good number
-    generations = 20 # number of epochs
+    population_size = 20 # population size, 80 good number
+    generations = 5 # number of epochs
 
 
 
