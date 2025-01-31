@@ -40,9 +40,11 @@ class EGD:
         self, 
         population_size: int,
         generations: int,
+        epochs: int = 500,
         debug: bool = True
     ) -> None:
         """Initialize APBT.
+
 
         Args:
             population_size: Size of population (min 20)
@@ -61,8 +63,9 @@ class EGD:
         self.leaderboard: List[int] = list(range(population_size))
         self.last_ready: List[int] = [0] * population_size
         self.generations = generations
-        self.epochs = 1000
+        self.epochs = epochs
         self.debug = debug
+
 
 
         # Dataset configuration
@@ -82,7 +85,7 @@ class EGD:
         self.M_RANGE = (0.0, 0.9)     # Momentum
         self.D_RANGE = (0.0, 0.1)     # Weight decay
         self.HL_RANGE = (1, 4)        # Hidden layers
-        self.HUPL_RANGE = (16, 256)   # Units per layer
+        self.HUPL_RANGE = (128, 256)   # Units per layer
         self.PERTS = (0.8, 1.2)       # Perturbation factors
         
         # Training configuration
