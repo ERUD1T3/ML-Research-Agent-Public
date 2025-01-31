@@ -19,69 +19,31 @@ class APBT:
     
     def __init__(
         self, 
-        k,
-        end_training,
+        population_size,
+        epochs_num,
         debug=True):
         '''
         Initialize the APBT class
         '''
-        self.k = k # min = 20
-        self.population = [None for _ in range(k)]
-        self.hyperparams = [None for _ in range(k)]
-        self.perfs = [0.0 for _ in range(k)]
-        self.accuracies = [0.0 for _ in range(k)]
-        self.leaderboard = [i for i in range(k)] # based on performance
-        self.last_ready = [0 for _ in range(k)]
-        self.epochs = end_training
+        self.population_size = population_size # min = 20
+        self.population = [None for _ in range(population_size)]
+        self.hyperparams = [None for _ in range(population_size)]
+        self.perfs = [0.0 for _ in range(population_size)]
+        self.accuracies = [0.0 for _ in range(population_size)]
+        self.leaderboard = [i for i in range(population_size)] # based on performance
+        self.last_ready = [0 for _ in range(population_size)]
+        self.epochs = epochs_num
         self.debug = debug
 
         # Dataset size percentage to use
         self.data_percent = 0.01
 
-        # Load MNIST data
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-
-        mnist_train = torchvision.datasets.MNIST(
-            root='./data', 
-            train=True,
-            download=True,
-            transform=transform
-        )
-        mnist_test = torchvision.datasets.MNIST(
-            root='./data', 
-            train=False,
-            transform=transform
-        )
-
-        # Convert MNIST data to expected format
+        # Load and process MNIST data
         self.training = []
         self.testing = []
         self.validation = []
-
-        # Process training data (using only data_percent)
-        train_size = int(len(mnist_train) * self.data_percent)
-        for i in range(train_size):
-            img, label = mnist_train[i]
-            img_flat = img.view(-1).tolist()
-            label_onehot = [1.0 if i == label else 0.0 for i in range(10)]
-            self.training.append([img_flat, label_onehot])
-
-        # Split into train/validation
-        self.n_examples = len(self.training)
-        random.shuffle(self.training)
-        self.validation = self.training[:int(self.n_examples * 0.2)]
-        self.training = self.training[int(self.n_examples * 0.2):]
-
-        # Process test data (using only data_percent)
-        test_size = int(len(mnist_test) * self.data_percent)
-        for i in range(test_size):
-            img, label = mnist_test[i]
-            img_flat = img.view(-1).tolist()
-            label_onehot = [1.0 if i == label else 0.0 for i in range(10)]
-            self.testing.append([img_flat, label_onehot])
+        self.n_examples = 0
+        self.load_mnist_data()
 
         # Set input/output dimensions for MNIST
         self.input_units = 28 * 28  # Flattened 28x28 images
@@ -99,7 +61,7 @@ class APBT:
         self.X, self.Y = 1.09, 1.02 # scaling factor
     
         # generate the population
-        self.generate_population(k)
+        self.generate_population(population_size)
 
         # best running best performer, its performance,
         # accuracy, and its hyperparameters 
@@ -117,41 +79,62 @@ class APBT:
             print('Testing:', len(self.testing))
             print('Number of examples:', self.n_examples)
 
-    def read_attributes(self, attr_path):
+    def load_mnist_data(self) -> None:
         '''
-        Not needed for MNIST data
+        Load and preprocess the MNIST dataset.
+        
+        This function:
+        1. Downloads MNIST if not present
+        2. Applies normalization transforms
+        3. Flattens images and converts labels to one-hot encoding
+        4. Splits data into training/validation/test sets
+        5. Subsamples data according to self.data_percent
         '''
-        pass
+        # Define normalization transform
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])
 
-    def to_encode(self, attr):
-        '''
-        Not needed for MNIST data
-        '''
-        pass
+        # Download and load MNIST
+        mnist_train = torchvision.datasets.MNIST(
+            root='./data', 
+            train=True,
+            download=True,
+            transform=transform
+        )
+        mnist_test = torchvision.datasets.MNIST(
+            root='./data', 
+            train=False,
+            transform=transform
+        )
 
-    def onehot(self, attr, value):
-        '''
-        Not needed for MNIST data
-        '''
-        pass
+        # Process training data using only data_percent
+        train_size = int(len(mnist_train) * self.data_percent)
+        for i in range(train_size):
+            img, label = mnist_train[i]
+            # Flatten 28x28 image to 1D array
+            img_flat = img.view(-1).tolist()
+            # Convert label to one-hot encoding
+            label_onehot = [1.0 if i == label else 0.0 for i in range(10)]
+            self.training.append([img_flat, label_onehot])
 
-    def read_data(self, data_path):
-        '''
-        Not needed for MNIST data
-        '''
-        pass
+        # Split training data into train/validation sets
+        self.n_examples = len(self.training)
+        random.shuffle(self.training)
+        split_idx = int(self.n_examples * 0.2)
+        self.validation = self.training[:split_idx]
+        self.training = self.training[split_idx:]
 
-    def decode(self, attr, encoded):
-        '''
-        Decode the encoded value for MNIST
-        '''
-        return encoded.index(max(encoded))
+        # Process test data using only data_percent
+        test_size = int(len(mnist_test) * self.data_percent)
+        for i in range(test_size):
+            img, label = mnist_test[i]
+            img_flat = img.view(-1).tolist()
+            label_onehot = [1.0 if i == label else 0.0 for i in range(10)]
+            self.testing.append([img_flat, label_onehot])
 
-    def get_input_output_len(self):
-        '''
-        Not needed for MNIST data
-        '''
-        pass
+
 
     def generate_net(self, idx):
         '''
@@ -225,12 +208,12 @@ class APBT:
         index = net.net_id
         # get the bottoms
         bottom = 1 - self.TRUNC # bottom 20%
-        bottoms = self.leaderboard[int(self.k * bottom):]
+        bottoms = self.leaderboard[int(self.population_size * bottom):]
         # check if net is in the bottom 20%
         if index in bottoms:
             # get the tops
             top = self.TRUNC # top 20%
-            tops = self.leaderboard[:int(self.k * top)]
+            tops = self.leaderboard[:int(self.population_size * top)]
             # get the index of one of the top 20%
             top_index = random.choice(tops)
             # get the index of the top net
@@ -249,7 +232,7 @@ class APBT:
         Update the leaderboard
         '''
         # sort the population by perfs
-        sorted_nets = [i for i in range(self.k)]
+        sorted_nets = [i for i in range(self.population_size)]
         sorted_nets.sort(key=lambda x: self.perfs[x], reverse=True)
         # update leaderboard
         self.leaderboard = sorted_nets
@@ -351,7 +334,7 @@ class APBT:
         for e in range(self.epochs):
             # print the epoch number
             print('Epoch: ', e, end='\n')
-            for i in range(self.k):
+            for i in range(self.population_size):
                 # getting a net of the population
                 net = self.population[i]
                 hyperparams = self.hyperparams[i]

@@ -1,0 +1,7 @@
+This is a scratchpad file for you to write notes on your task.Loading the MNIST dataset from torchvision.datasets
+- Apply normalization: transforms.Normalize((0.1307,), (0.3081,))
+ 
+Dataset details:
+- Dataset: MNIST
+- Transformations: Normalize((0.1307,), (0.3081,))
+ 

@@ -6,17 +6,19 @@ def main():
     '''main of the program'''
 
     debugging = True
-    k = 80 # population size, 80 good number
+    population_size = 80 # population size, 80 good number
     epochs = 1000 # number of epochs
+
 
 
     # run trials
     for trial in range(3):
         apbt = APBT(
-            k,
+            population_size,
             epochs,
             debugging
         )
+
 
         # set log path
         apbt.log_path= f'logs/mnist{trial}.csv'

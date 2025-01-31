@@ -1,25 +1,54 @@
 
 import math
 import random
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
-class ANN:
-    '''
-    Feed Forward Artificial Neural Network Class
-    1 Input, 1 Hidden, 1 Output Layer
-    '''
+class ANN(nn.Module):
+    """Feed Forward Artificial Neural Network Class using PyTorch.
+    
+    A flexible neural network implementation that supports variable number of hidden layers.
+    Inherits from PyTorch's nn.Module base class.
+    
+    Attributes:
+        net_id (int): Unique identifier for this network
+        hidden_units (List[int]): Number of units in each hidden layer
+        learning_rate (float): Learning rate for optimization
+        momentum (float): Momentum coefficient for optimization
+        decay (float): Weight decay coefficient
+        input_units (int): Number of input features
+        output_units (int): Number of output units
+        debug (bool): Whether to print debug information
+        activation (nn.Module): Activation function to use
+        topology (List[int]): Complete network architecture including input/output layers
+        model (nn.Sequential): PyTorch sequential model containing all layers
+    """
     def __init__(
         self, 
-        net_id,
-        hyperparams,
-        input_units, 
-        output_units, 
-        debug=True,
-    ):
+        net_id: int,
+        hyperparams: dict,
+        input_units: int, 
+        output_units: int,
+        debug: bool = True,
+    ) -> None:
+        """Initialize the Artificial Neural Network.
         
-        '''
-        Initialize the Artificial Neural Network
-        '''
-        # hyperparameters
+        Args:
+            net_id: Unique identifier for this network instance
+            hyperparams: Dictionary containing network hyperparameters:
+                - hidden_units: List of integers specifying hidden layer sizes
+                - learning_rate: Learning rate for optimization
+                - momentum: Momentum coefficient
+                - decay: Weight decay coefficient
+                - activation: Optional activation function (defaults to ReLU)
+            input_units: Number of input features
+            output_units: Number of output units/classes
+            debug: Whether to print debug information
+        """
+        super(ANN, self).__init__()
+        
+        # Store network hyperparameters
         self.net_id = net_id
         self.hidden_units = hyperparams['hidden_units']
         self.learning_rate = hyperparams['learning_rate']
@@ -29,77 +58,104 @@ class ANN:
         self.output_units = output_units
         self.debug = debug
 
-        # initialize the weights at random based 
-        # the topology of the network
+        # Get activation function from hyperparams or default to ReLU
+        self.activation = hyperparams.get('activation', nn.ReLU())
+
+        # Build complete network topology: input -> hidden -> output
         self.topology = [self.input_units] + \
                         hyperparams['hidden_units'] + \
                         [self.output_units]
 
-        self.weights = {
-            f'W{i}{i-1}': [[self.rand_init() 
-                        for _ in range(self.topology[i-1] + 1)]
-                    for _ in range(self.topology[i])] 
-                for i in range(1, len(self.topology))
-        }
-
-        self.res = None
-        # self.num_params = self.num_params()
-
-        # print the everything
-        # if self.debug:
-        #     print('learning rate: ', self.learning_rate)
-        #     print('momentum: ', self.momentum)
-        #     print('Weights: ', self.weights)
-        #     print('Topology: ', self.topology)
-
-    def rand_init(self):
-        '''
-        Initialize the weights at random
-        https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/
-        '''
-        # number of nodes in the previous layer
-        n = self.input_units
-        # calculate the range for the weights
-        lower, upper = -(1.0 / math.sqrt(n)), (1.0 / math.sqrt(n))
-        # generate random numbers
-        number = random.random()
-        # scale to the desired range
-        scaled = lower + number * (upper - lower)
-
-        return scaled
+        # Create network layers
+        layers = []
+        for i in range(len(self.topology)-1):
+            # Add linear layer
+            layers.append(nn.Linear(self.topology[i], self.topology[i+1]))
+            # Add activation after all but last layer
+            if i < len(self.topology)-2:
+                layers.append(self.activation)
+        
+        # Create sequential model from layers
+        self.model = nn.Sequential(*layers)
              
-    def print_weights(self):
-        '''
-        Print the weights of the Artificial Neural Network
-        with 2 decimal places
-        '''
-        # print('Weights: ', self.weights)
-        for key, value in self.weights.items():
-            print(f'{key}: ')
-            for i in range(len(value)):
-                print(f'{i}: ', end='')
-                for j in range(len(value[i])):
-                    print(f'{value[i][j]:.2f} ', end='')
-                print()
+    def print_weights(self) -> None:
+        """Print the weights of each layer in the PyTorch neural network.
+        
+        Prints weight matrices for each layer, formatted with 2 decimal places.
+        Each row represents the weights for a single output neuron, showing its 
+        connections to all input neurons.
+        
+        Returns:
+            None
+        """
+        # Iterate through named parameters of the model
+        for name, param in self.model.named_parameters():
+            # Only print weight matrices, skip biases
+            if 'weight' in name:
+                print(f'\n{name}:')
+                weights = param.data
+                
+                # Print weights row by row
+                for i in range(weights.size(0)):
+                    print(f'{i}: ', end='')
+                    # Print each weight in the row
+                    for j in range(weights.size(1)):
+                        print(f'{weights[i,j].item():.2f} ', end='')
+                    print()
 
-    def print_network(self):
-        '''
-        Print the network
-        '''
+    def print_network(self) -> None:
+        """Print the network topology and weights.
+        
+        Displays the complete network architecture by printing:
+        1. The layer topology (number of neurons in each layer)
+        2. The weight matrices between layers
+        
+        Returns:
+            None
+        """
+        # Print network topology/architecture
         print('Network: ', self.topology)
+        # Print weight matrices between layers
         self.print_weights()
 
-    def set_hyperparameters(self, hyperparams):
-        '''
-        Set the hyperparameters of the Artificial Neural Network
-        '''
+    def set_hyperparameters(self, hyperparams: dict) -> None:
+        """Set the hyperparameters and rebuild the neural network architecture.
+
+        Updates the network's hyperparameters (learning rate, momentum, decay) and 
+        rebuilds the model with a new topology based on the provided hidden units.
+
+        Args:
+            hyperparams: Dictionary containing hyperparameter values with keys:
+                - 'learning_rate': Learning rate for gradient descent
+                - 'momentum': Momentum coefficient for weight updates
+                - 'decay': Weight decay coefficient for regularization
+                - 'hidden_units': List of integers specifying number of neurons per hidden layer
+
+        Returns:
+            None
+        """
+        # Set training hyperparameters
         self.learning_rate = hyperparams['learning_rate']
-        self.momentum = hyperparams['momentum']
+        self.momentum = hyperparams['momentum'] 
         self.decay = hyperparams['decay']
         self.hidden_units = hyperparams['hidden_units']
+
+        # Build full topology: input layer + hidden layers + output layer
         self.topology = [self.input_units] + \
             hyperparams['hidden_units'] + \
             [self.output_units]
+        
+        # Rebuild model with new topology
+        layers = []
+        for i in range(len(self.topology)-1):
+            # Add linear layer between each pair of adjacent layers
+            layers.append(nn.Linear(self.topology[i], self.topology[i+1]))
+            # Add activation after all but the final layer
+            if i < len(self.topology)-2:
+                layers.append(self.activation)
+        
+        # Create new sequential model with updated architecture
+        self.model = nn.Sequential(*layers)
     
     def num_params(self):
         '''
