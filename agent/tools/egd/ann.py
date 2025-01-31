@@ -4,6 +4,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from typing import List, Tuple
 
 class ANN(nn.Module):
     """Feed Forward Artificial Neural Network Class using PyTorch.
@@ -21,8 +22,11 @@ class ANN(nn.Module):
         output_units (int): Number of output units
         debug (bool): Whether to print debug information
         activation (nn.Module): Activation function to use
+        output_activation (nn.Module): Output layer activation function
         topology (List[int]): Complete network architecture including input/output layers
         model (nn.Sequential): PyTorch sequential model containing all layers
+        optimizer (optim.Adam): Adam optimizer for training
+        device (torch.device): Device to run computations on (CPU/GPU)
     """
     def __init__(
         self, 
@@ -31,6 +35,7 @@ class ANN(nn.Module):
         input_units: int, 
         output_units: int,
         debug: bool = True,
+        output_activation: nn.Module = nn.Softmax(dim=-1)
     ) -> None:
         """Initialize the Artificial Neural Network.
         
@@ -45,8 +50,16 @@ class ANN(nn.Module):
             input_units: Number of input features
             output_units: Number of output units/classes
             debug: Whether to print debug information
+            output_activation: Activation function for output layer (defaults to Softmax)
         """
         super(ANN, self).__init__()
+        
+        # Set device
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Print available device
+        print(f"Using device: {self.device}")
+        if torch.cuda.is_available():
+            print(f"GPU: {torch.cuda.get_device_name(0)}")
         
         # Store network hyperparameters
         self.net_id = net_id
@@ -60,6 +73,7 @@ class ANN(nn.Module):
 
         # Get activation function from hyperparams or default to ReLU
         self.activation = hyperparams.get('activation', nn.ReLU())
+        self.output_activation = output_activation
 
         # Build complete network topology: input -> hidden -> output
         self.topology = [self.input_units] + \
@@ -71,13 +85,21 @@ class ANN(nn.Module):
         for i in range(len(self.topology)-1):
             # Add linear layer
             layers.append(nn.Linear(self.topology[i], self.topology[i+1]))
-            # Add activation after all but last layer
+            # Add activation after all layers
             if i < len(self.topology)-2:
                 layers.append(self.activation)
+            else:
+                layers.append(self.output_activation)
         
-        # Create sequential model from layers
-        self.model = nn.Sequential(*layers)
-             
+        # Create sequential model from layers and move to device
+        self.model = nn.Sequential(*layers).to(self.device)
+
+        # Initialize optimizer
+        self.optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=0  # Weight decay handled manually in loss function
+        )
     def print_weights(self) -> None:
         """Print the weights of each layer in the PyTorch neural network.
         
@@ -154,274 +176,305 @@ class ANN(nn.Module):
             if i < len(self.topology)-2:
                 layers.append(self.activation)
         
-        # Create new sequential model with updated architecture
-        self.model = nn.Sequential(*layers)
+        # Create new sequential model with updated architecture and move to device
+        self.model = nn.Sequential(*layers).to(self.device)
+
+        # Update optimizer with new parameters and hyperparameters
+        self.optimizer = optim.SGD(
+            self.model.parameters(),
+            lr=self.learning_rate,
+            momentum=self.momentum,
+            weight_decay=0  # Weight decay handled manually in loss function
+        )
     
-    def num_params(self):
-        '''
-        Get the number of parameters
-        '''
-        num_parameters = 0
-        for t in range(1, len(self.topology)):
-            num_parameters += self.topology[t] * self.topology[t-1]
-        return num_parameters
-
-    def save(self, filename=None):
-        '''
-        Save the Artificial Neural Network
-        '''
-        # if no filename is provided, then use the default
-        filename = filename or 'weights.txt'
-        # save the weights onto a file
-        with open(filename, 'w') as f:
-            f.write(str(self.weights))
-
-    def load(self, filename):
-        '''
-        Load the Artificial Neural Network
-        '''
-        # load the weights from a file
-        with open(filename, 'r') as f:
-            self.weights = eval(f.read())
-
-        # print('one weight: ', self.weights['hidden'][0][0])
-        self.print_weights()
-
-    def get_classes(self):
-        '''
-        Get the output classes
-        '''
+    def num_params(self) -> int:
+        """Calculate total number of trainable parameters in the PyTorch model.
         
-        num_out = self.output_units
-        classes = [
-            [0.0 for _ in range(num_out)] 
-            for _ in range(num_out)
-        ]
-
-        for i in range(num_out):
-            classes[i][i] = 1.0
+        Counts the total number of weights and biases across all layers
+        in the neural network.
         
-        return classes
+        Returns:
+            int: Total number of trainable parameters in the model
+        """
+        # Sum up parameters across all layers using PyTorch's built-in functionality
+        return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
-    def sigmoid(self, x):
-        '''
-        Sigmoid activation function
-        '''
-        # print('bad x:', x)
-        try : return 1 / (1 + math.exp(-x))
-        except OverflowError: return 0.0
+    def save(self, filename: str | None = None) -> None:
+        """Save the PyTorch model's state dictionary to a file.
+        
+        Saves the model's parameters (weights and biases) to a file using
+        PyTorch's save functionality.
 
-    def d_sigmoid(self, x):
-        '''
-        Derivative of the sigmoid function
-        '''
-        y = self.sigmoid(x)
-        return y * (1 - y)
+        Args:
+            filename: Optional path to save the model. If not provided,
+                     defaults to 'model.pt'
 
-    def forward(self, instance):
-        '''
-        Feed forward the Artificial Neural Network
-        '''
+        Returns:
+            None
+        """
+        # Use default filename if none provided
+        filename = filename or 'model.pt'
+        
+        # Save model state dictionary using PyTorch's save
+        torch.save(self.model.state_dict(), filename)
 
-        res = {
-            f'layer{i}': [0.0 for _ in range(self.topology[i])]
-                for i in range(1, len(self.topology))
-        }
+    def load(self, filename: str) -> None:
+        """Load a saved PyTorch model's state dictionary from a file.
+        
+        Loads previously saved model parameters (weights and biases) from a file
+        using PyTorch's load functionality.
 
-        # set the input layer to the instance
-        res['layer0'] = instance
+        Args:
+            filename: Path to the saved model file (.pt extension)
 
-        # feed forward the hidden layer
-        for t in range(1, len(self.topology)):
-            for i in range(self.topology[t]):
-                for j in range(self.topology[t-1]):
-                    # calculating ther linear combination
-                    res[f'layer{t}'][i] += \
-                        self.weights[f'W{t}{t-1}'][i][j] * res[f'layer{t-1}'][j]
-                # adding the bias
-                res[f'layer{t}'][i] += \
-                    self.weights[f'W{t}{t-1}'][i][self.topology[t-1]]
+        Returns:
+            None
 
-                # applying the activation function
-                res[f'layer{t}'][i] = self.sigmoid(res[f'layer{t}'][i])
+        Raises:
+            FileNotFoundError: If the specified file does not exist
+            RuntimeError: If the loaded state dict is not compatible with current model
+        """
+        # Load the saved state dictionary using PyTorch's load
+        state_dict = torch.load(filename, map_location=self.device)
+        
+        # Load the state dictionary into the model
+        self.model.load_state_dict(state_dict)
+        
+        # Set model to evaluation mode
+        self.model.eval()
 
-        # getting the output
-        output = res[f'layer{len(self.topology)-1}']
-        self.res = res
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the PyTorch neural network.
+        
+        Performs forward propagation through the network layers using PyTorch's
+        built-in functionality. Each layer applies a linear transformation followed
+        by the specified activation function (except the output layer).
 
-        return output
+        Args:
+            x: Input tensor of shape (batch_size, input_units)
+                containing the input features
 
-    def predict(self, instance):
-        '''
-        Predict the output of the instance
-        later update to include processing of discrete input 
-        and output
-        '''
-        return self.forward(instance)
+        Returns:
+            torch.Tensor: Output tensor of shape (batch_size, output_units)
+                containing the network predictions
+        """
+        # Flatten input if needed (e.g. for image data)
+        if len(x.shape) > 2:
+            x = x.view(x.size(0), -1)
+            
+        # Move input to device and forward pass through sequential model
+        x = x.to(self.device)
+        return self.model(x)
 
-    def loss(self, target, output, no_decay=False):
-        '''
-        Compute the loss for SGD
-        '''
-        loss = 0.0
-        # getting all the loss
-        for i in range(self.output_units):
-            loss += (target[i] - output[i]) ** 2
-        loss /= 2.0
+    def predict(self, instance: torch.Tensor) -> torch.Tensor:
+        """Make predictions using the PyTorch neural network model.
+        
+        Performs forward pass through the network to generate predictions
+        for the given input instance.
 
-        if no_decay: return loss 
+        Args:
+            instance: Input tensor of shape (batch_size, input_units) or 
+                     (batch_size, channels, height, width) for image data
 
-        w_term = 0.0
-        # adding all the weights
-        for l in range(1, len(self.topology)):
-            for i in range(len(self.weights[f'W{l}{l-1}'])):
-                for j in range(len(self.weights[f'W{l}{l-1}'][i])):
-                    w_term += self.weights[f'W{l}{l-1}'][i][j] ** 2
+        Returns:
+            torch.Tensor: Output tensor of shape (batch_size, output_units)
+                         containing model predictions
+        """
+        # Set model to evaluation mode
+        self.model.eval()
+        
+        # Make predictions using forward pass
+        with torch.no_grad():
+            predictions = self.forward(instance)
+            
+        return predictions
 
-        n = self.num_params()
-        loss += self.decay * (w_term / (n * 2))
+    def loss(
+        self,
+        target: torch.Tensor,
+        output: torch.Tensor,
+        no_decay: bool = False,
+        loss_fn: torch.nn.Module = nn.CrossEntropyLoss()
+    ) -> torch.Tensor:
+        """Compute the loss for the neural network.
+        
+        Calculates loss between target and predicted output, with optional L2 regularization.
+        Uses specified loss function (defaults to CrossEntropyLoss) and adds weight decay
+        term if no_decay is False.
+
+        Args:
+            target: Target tensor of shape (batch_size, output_units)
+            output: Model output tensor of shape (batch_size, output_units) 
+            no_decay: If True, skip L2 regularization term
+            loss_fn: Loss function to use, defaults to CrossEntropyLoss
+
+        Returns:
+            torch.Tensor: Scalar tensor containing the computed loss
+        """
+        # Move target to device and calculate main loss
+        target = target.to(self.device)
+        loss = loss_fn(output, target)
+
+        if no_decay:
+            return loss
+
+        # Add L2 regularization term
+        l2_reg = torch.tensor(0., requires_grad=True).to(self.device)
+        for param in self.model.parameters():
+            l2_reg = l2_reg + torch.norm(param, p=2)
+        
+        # Add weight decay term scaled by number of parameters
+        n_params = sum(p.numel() for p in self.model.parameters())
+        loss += self.decay * (l2_reg / (2 * n_params))
 
         return loss
 
-    def backward(self, target, output):
-        '''
-        Back propagate the error with momentum, weight 
-        decay and learning rate
-        SGD
-        '''
-        # prior delta update
-        errors = {
-            f'layer{l}': [0.0 for _ in range(self.topology[l])]
-                for l in range(1, len(self.topology))
-        }
-
-        # calculate the errors
-        for l in range(len(self.topology)-1, 0, -1):
-            for i in range(self.topology[l]):
-                if l == len(self.topology)-1:
-                    errors[f'layer{l}'][i] = target[i] - output[i]
-                else:
-                    for j in range(self.topology[l+1]):
-                        errors[f'layer{l}'][i] += errors[f'layer{l+1}'][j] * \
-                            self.weights[f'W{l+1}{l}'][j][i]
-                # applying the activation function derivative
-                errors[f'layer{l}'][i] *= self.d_sigmoid(self.res[f'layer{l}'][i])
-
-        return errors
-
-    def step(self, errors):
-        '''
-        Update the weights with the errors
-        '''
-        deltas = {
-            f'W{i}{i-1}': [[ 0.0 for _ in range(self.topology[i-1] + 1)]
-                    for _ in range(self.topology[i])] 
-                for i in range(1, len(self.topology))
-        }
-        # update the weights
-        for t in range(1, len(self.topology)):
-            for i in range(self.topology[t]):
-                for j in range(self.topology[t-1]):
-                    # update the weights
-                    deltas[f'W{t}{t-1}'][i][j] = self.learning_rate * errors[f'layer{t}'][i] * \
-                        self.res[f'layer{t-1}'][j] + self.momentum * deltas[f'W{t}{t-1}'][i][j]
-                    self.weights[f'W{t}{t-1}'][i][j] = (1 - self.learning_rate * self.decay) * \
-                        self.weights[f'W{t}{t-1}'][i][j] + deltas[f'W{t}{t-1}'][i][j]
-                
-                # update the bias
-                deltas[f'W{t}{t-1}'][i][self.topology[t-1]] = self.learning_rate * errors[f'layer{t}'][i] \
-                                    + self.momentum * deltas[f'W{t}{t-1}'][i][self.topology[t-1]]
-                self.weights[f'W{t}{t-1}'][i][self.topology[t-1]] = (1 - self.learning_rate * self.decay) * \
-                    self.weights[f'W{t}{t-1}'][i][self.topology[t-1]] + deltas[f'W{t}{t-1}'][i][self.topology[t-1]]
-
-    def training_step(self, train_data):
-        '''
-        Train the Artificial Neural Network
-        k is the number of folds
-        '''
-        if not train_data:
-            raise ValueError('No training data provided')
-        # get the data
-        data = train_data
-        # shuffle the data
-        random.shuffle(data)
-        # train the network
-        loss = 0.0
-        # if self.debug:
-        #     print('Epoch: ', i, end='')
-        for example in data:
-            # loss += self.step(instance)
-            inputt, target = example[0], example[1]
-            # get the output
-            output = self.forward(inputt)
-            # compute the loss
-            loss += self.loss(target, output)
-            # backpropagate the errors
-            errors = self.backward(target, output)
-            # update the weights
-            self.step(errors)
-            
-        # if self.debug:
-        #     # print('Weights: ', self.weights)
-        #     print(f'Net #{self.net_id}\'s loss: {loss/len(data): .3f}', end='')
-
-        return loss/len(data)
-
-    def train(self, train_data, epochs=10):
-        '''
-        Train the Artificial Neural Network
-        k is the number of folds
-        '''
-        if not train_data:
-            raise ValueError('No training data provided')
-        # get the data
-        data = train_data
-        # shuffle the data
-        random.shuffle(data)
-        # train the network
-        for _ in range(epochs):
-            # if self.debug:
-            #     print('Epoch: ', i, end='')
-            loss = 0.0
-            for example in data:
-                # loss += self.step(instance)
-                inputt, target = example[0], example[1]
-                # get the output
-                output = self.forward(inputt)
-                # compute the loss
-                loss += self.loss(target, output)
-                # backpropagate the errors
-                errors = self.backward(target, output)
-                # update the weights
-                self.step(errors)
-            
-            if self.debug:
-                # print('Weights: ', self.weights)
-                print(f'Net #{self.net_id}\'s loss: {loss/len(data)}', end='\n')
-
-        return loss/len(data)
-
-    def test(self, test_data=None):
-        '''
-        Test the Artificial Neural Network
-        ''' 
-        if not test_data:
-            raise Exception('No test data provided')
-        # if self.debug:
-        #     print('Testing data: ', test_data)
-        accuracy = 0.0
-        # test the network
-        for instance in test_data:
-            # get the output
-            output = self.forward(instance[0])
-            # check if the output is correct
-            accuracy += (1.0 - self.loss(instance[1], output, no_decay=True))
-        # get the average accuracy
-        accuracy /= len(test_data)
-
-        return accuracy
- 
-    
-
+    def training_step(self, train_data: List[Tuple[torch.Tensor, torch.Tensor]], batch_size: int = 32) -> float:
+        """Perform one training step on the given training data using minibatches.
         
+        Takes training examples, splits into minibatches, performs forward and backward passes,
+        and updates model parameters using SGD with momentum and weight decay.
 
+        Args:
+            train_data: List of (input, target) tuples where:
+                - input is a tensor of shape (input_units,)
+                - target is a tensor of shape (output_units,)
+            batch_size: Size of minibatches to use (default: 32)
+
+        Returns:
+            float: Average loss over all training examples
+
+        Raises:
+            ValueError: If train_data is empty
+        """
+        if not train_data:
+            raise ValueError('No training data provided')
+
+        # Shuffle training data
+        random.shuffle(train_data)
+
+        # Track total loss
+        total_loss = 0.0
+
+        # Set model to training mode
+        self.model.train()
+
+        # Create batches
+        n_samples = len(train_data)
+        n_batches = (n_samples + batch_size - 1) // batch_size  # Ceiling division
+
+        # Process each batch
+        for i in range(n_batches):
+            start_idx = i * batch_size
+            end_idx = min(start_idx + batch_size, n_samples)
+            batch = train_data[start_idx:end_idx]
+
+            # Stack inputs and targets into batches
+            batch_inputs = torch.stack([x[0] for x in batch])
+            batch_targets = torch.stack([x[1] for x in batch])
+
+            # Zero gradients
+            self.optimizer.zero_grad()
+
+            # Forward pass
+            batch_outputs = self.forward(batch_inputs)
+
+            # Compute loss with L2 regularization
+            loss = self.loss(batch_targets, batch_outputs)
+            total_loss += loss.item() * len(batch)  # Scale loss by batch size
+
+            # Backward pass
+            loss.backward()
+
+            # Update weights using optimizer
+            self.optimizer.step()
+
+        # Return average loss
+        return total_loss / n_samples
+
+    def train(self, train_data: List[Tuple[torch.Tensor, torch.Tensor]], epochs: int = 10) -> float:
+        """Train the neural network for multiple epochs.
+        
+        Performs multiple epochs of training using the provided training data.
+        For each epoch, shuffles data and performs training steps.
+
+        Args:
+            train_data: List of (input, target) tuples for training
+            epochs: Number of training epochs (default: 10)
+
+        Returns:
+            float: Final average loss over last epoch
+
+        Raises:
+            ValueError: If train_data is empty
+        """
+        if not train_data:
+            raise ValueError('No training data provided')
+
+        # Train for specified number of epochs
+        for epoch in range(epochs):
+            # Perform one training step on all data
+            avg_loss = self.training_step(train_data)
+            
+            # if self.debug:
+            print(f'Epoch {epoch+1} | Net #{self.net_id}\'s loss: {avg_loss:.4f}')
+
+        return avg_loss
+
+    def test(self, test_data: List[Tuple[torch.Tensor, torch.Tensor]], acc_report: bool = False) -> float | Tuple[float, float]:
+        """Evaluate the neural network on test data.
+        
+        Performs forward passes on test data and computes average error and accuracy.
+        Accuracy is measured as percentage of correct predictions.
+        Sets model to evaluation mode during testing.
+
+        Args:
+            test_data: List of (input, target) tuples for testing
+            acc_report: Whether to also return accuracy (default: False)
+
+        Returns:
+            float: Average error on test data if acc_report is False
+            Tuple[float, float]: Average error and accuracy if acc_report is True
+
+        Raises:
+            ValueError: If test_data is empty
+        """
+        if not test_data:
+            raise ValueError('No test data provided')
+
+        # Set model to evaluation mode
+        self.model.eval()
+        
+        total_error = 0.0
+        correct = 0
+        total = 0
+        
+        # Disable gradient computation for evaluation
+        with torch.no_grad():
+            for inputs, targets in test_data:
+                # Forward pass
+                outputs = self.forward(inputs)
+                
+                # Compute error using MSE loss without weight decay
+                error = self.loss(targets, outputs).item()
+                total_error += error
+                
+                if acc_report:
+                    # Get predicted class (max probability)
+                    _, predicted = torch.max(outputs, 0)
+                    # Get target class
+                    _, target_class = torch.max(targets, 0)
+                    # Update accuracy counts
+                    total += 1
+                    correct += (predicted == target_class).item()
+
+        # Calculate average error
+        avg_error = total_error / len(test_data)
+        
+        if acc_report:
+            # Calculate accuracy as percentage correct
+            accuracy = correct / total
+            return avg_error, accuracy
+            
+        # Return just error by default
+        return avg_error
