@@ -40,7 +40,7 @@ class EGD:
         self, 
         population_size: int,
         generations: int,
-        epochs: int = 500,
+        epochs: int = 200,
         debug: bool = True
     ) -> None:
         """Initialize APBT.
@@ -134,6 +134,7 @@ class EGD:
             self.testing: List of (input, target) tensor tuples for testing
             self.n_examples: Total number of training examples
         """
+        print("Loading MNIST data...")
         # Define normalization transform
         transform = transforms.Compose([
             transforms.ToTensor(),
@@ -261,7 +262,7 @@ class EGD:
         # Train for self.epochs
         for epoch in range(self.epochs):
             # Perform training step and get loss
-            total_loss = net.training_step(self.training, batch_size=25000)
+            total_loss = net.training_step(self.training, batch_size=20000)
             # Print progress
             print(f'Net #{net.net_id} | Epoch {epoch+1} | Loss: {total_loss:.4f}')
 

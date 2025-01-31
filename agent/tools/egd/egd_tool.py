@@ -24,7 +24,7 @@ egd_tool_definitions = [
                     "type": "integer",
                     "description": "Number of epochs to train each network between generations",
                     "minimum": 1,
-                    "default": 500
+                    "default": 200
                 },
                 "debug": {
                     "type": "boolean",
@@ -45,15 +45,17 @@ def run_egd(arguments):
     if isinstance(arguments, dict):
         population_size = arguments.get("population_size", 20)
         generations = arguments.get("generations", 5) 
+        epochs = arguments.get("epochs", 200)
         debug = arguments.get("debug", True)
     else:
         population_size = 20
         generations = 5
+        epochs = 200
         debug = True
 
     try:
         # Initialize EGD
-        egd = EGD(population_size, generations, debug)
+        egd = EGD(population_size, generations, epochs, debug)
         egd.log_path = 'logs/mnist_run.csv'
 
         # Train population
