@@ -94,8 +94,9 @@ python3 run.py --prompt "write an article on the history of python" --provider o
 """
 
 default_prompt = """
-Train a multilayer perceptron on the MNIST dataset in PyTorch.
+Train a multilayer perceptron on the MNIST dataset in PyTorch using the EGD tool.
 """
+
 
 @click.command()
 @click.option('--prompt', type=str, help='The prompt to run', default=default_prompt)

@@ -1,10 +1,10 @@
 
 
 # imports
-from ann import ANN
+from agent.tools.egd.ann import ANN
 import random
 from copy import deepcopy
-import utils
+import agent.tools.egd.utils as utils
 import torch
 import torchvision
 import torchvision.transforms as transforms

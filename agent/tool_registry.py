@@ -39,10 +39,13 @@ from agent.tools.internet.internet_tool import  internet_search_tool_definitions
 from agent.tools.paperswithcode.papers_with_code_tool import papers_with_code_tool_definitions, search_papers_with_code, get_paper_details_pwc, get_code_links_pwc
 # from agent.tools.code_lookup.code_lookup_tool import code_lookup, code_lookup_tool_definitions
 # from agent.tools.code_search.paper_lookup_tool import paper_lookup, paper_lookup_tool_definitions
+from agent.tools.egd.egd_tool import run_egd, egd_tool_definitions
+from agent.tools.egd.ann import ANN
 
 
 def collect_all_tools(*lists):
     merged_list = []
+
     for lst in lists:
         merged_list.extend(lst)
     return merged_list
@@ -60,7 +63,7 @@ all_tools = collect_all_tools(
     long_term_memory_tool_definitions,
     internet_search_tool_definitions,
     papers_with_code_tool_definitions,
-    
+    egd_tool_definitions,
     
     # code_lookup_tool_definitions,
     # paper_lookup_tool_definitions
@@ -91,9 +94,11 @@ worker_action_map = {
     "get_paper_details_pwc": "paper_id",
     "get_code_links_pwc": "paper_id",
     "search_papers_with_code": "query",
+    "run_egd": ["population_size", "generations", "epochs"],
     #"long_term_memory": ["query", "run_id"],
     # "lookup_papers": "query",
     # "lookup_code": "query"
+
 }
 
 
@@ -143,9 +148,11 @@ class Tool:
             "search_paperswithcode": search_papers_with_code,
             "get_paper_details_pwc": get_paper_details_pwc,
             "get_code_links_pwc": get_code_links_pwc,
+            "run_egd": run_egd,
             #"long_term_memory": use_long_term_memory,
             # "code_lookup": code_lookup,
             # "paper_lookup": paper_lookup
+
         }
 
         if self.task["type"] == "function":

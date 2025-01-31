@@ -1,6 +1,9 @@
+from agent.tools.egd.egd import EGD
+
 egd_tool_definitions = [
     {
         "name": "run_egd",
+
         "description": "Run Evolutionary Gradient Descent (EGD) training on MNIST dataset. EGD optimizes both neural network architecture and hyperparameters.",
         "input_schema": {
             "type": "object",
@@ -69,18 +72,18 @@ def run_egd(arguments):
             "status": "success",
             "attempt": f"Ran EGD with population size {population_size} for {generations} generations",
             "stdout": f"""
-Training complete.
+                Training complete.
 
-Best performing network:
-- Test accuracy: {best_accuracy:.2f}%
-- Parameters: {best_params}
+                Best performing network:
+                - Test accuracy: {best_accuracy:.2f}%
+                - Parameters: {best_params}
 
-Most accurate network:
-- Test accuracy: {most_acc_accuracy:.2f}%
-- Parameters: {most_acc_params}
-            """,
-            "stderr": ""
-        }
+                Most accurate network:
+                - Test accuracy: {most_acc_accuracy:.2f}%
+                - Parameters: {most_acc_params}
+                            """,
+                            "stderr": ""
+                        }
 
     except Exception as e:
         return {
