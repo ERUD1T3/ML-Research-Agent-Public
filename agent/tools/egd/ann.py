@@ -4,7 +4,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 class ANN(nn.Module):
     """Feed Forward Artificial Neural Network Class using PyTorch.
@@ -22,7 +22,7 @@ class ANN(nn.Module):
         output_units (int): Number of output units
         debug (bool): Whether to print debug information
         activation (nn.Module): Activation function to use
-        output_activation (nn.Module): Output layer activation function
+        output_activation (nn.Module): Output layer activations function
         topology (List[int]): Complete network architecture including input/output layers
         model (nn.Sequential): PyTorch sequential model containing all layers
         optimizer (optim.Adam): Adam optimizer for training
@@ -199,9 +199,10 @@ class ANN(nn.Module):
         # Sum up parameters across all layers using PyTorch's built-in functionality
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
-    def save(self, filename: str | None = None) -> None:
+    def save(self, filename: Union[str, None] = None) -> None:
         """Save the PyTorch model's state dictionary to a file.
         
+
         Saves the model's parameters (weights and biases) to a file using
         PyTorch's save functionality.
 
@@ -329,7 +330,7 @@ class ANN(nn.Module):
 
         return loss
 
-    def training_step(self, train_data: List[Tuple[torch.Tensor, torch.Tensor]], batch_size: int = 32) -> float:
+    def training_step(self, train_data: List[Tuple[torch.Tensor, torch.Tensor]], batch_size: Union[int, float, None] = 0.2) -> float:
         """Perform one training step on the given training data using minibatches.
         
         Takes training examples, splits into minibatches, performs forward and backward passes,
@@ -339,13 +340,18 @@ class ANN(nn.Module):
             train_data: List of (input, target) tuples where:
                 - input is a tensor of shape (input_units,)
                 - target is a tensor of shape (output_units,)
-            batch_size: Size of minibatches to use (default: 32)
+            batch_size: Size of minibatches to use. Can be:
+                - None: use entire dataset as one batch. No stochasticity in gradient descent.
+                - int > 0: use fixed batch size.
+                - float between 0 and 1: use as percentage of dataset size.
+                (default: 0.2) for 20% of dataset size.
+
 
         Returns:
             float: Average loss over all training examples
 
         Raises:
-            ValueError: If train_data is empty
+            ValueError: If train_data is empty or batch_size is invalid
         """
         if not train_data:
             raise ValueError('No training data provided')
@@ -359,14 +365,26 @@ class ANN(nn.Module):
         # Set model to training mode
         self.model.train()
 
-        # Create batches
+        # Determine actual batch size
         n_samples = len(train_data)
-        n_batches = (n_samples + batch_size - 1) // batch_size  # Ceiling division
+        if batch_size is None:
+            actual_batch_size = n_samples
+        elif isinstance(batch_size, float):
+            if not 0 < batch_size <= 1:
+                raise ValueError('Batch size as percentage must be between 0 and 1')
+            actual_batch_size = max(1, int(n_samples * batch_size))
+        else:
+            if not isinstance(batch_size, int) or batch_size <= 0:
+                raise ValueError('Batch size must be None, float between 0-1, or positive integer')
+            actual_batch_size = batch_size
+
+        # Create batches
+        n_batches = (n_samples + actual_batch_size - 1) // actual_batch_size  # Ceiling division
 
         # Process each batch
         for i in range(n_batches):
-            start_idx = i * batch_size
-            end_idx = min(start_idx + batch_size, n_samples)
+            start_idx = i * actual_batch_size
+            end_idx = min(start_idx + actual_batch_size, n_samples)
             batch = train_data[start_idx:end_idx]
 
             # Stack inputs and targets into batches
@@ -421,9 +439,10 @@ class ANN(nn.Module):
 
         return avg_loss
 
-    def test(self, test_data: List[Tuple[torch.Tensor, torch.Tensor]], acc_report: bool = False) -> float | Tuple[float, float]:
+    def test(self, test_data: List[Tuple[torch.Tensor, torch.Tensor]], acc_report: bool = False) -> Union[float, Tuple[float, float]]:
         """Evaluate the neural network on test data.
         
+
         Performs forward passes on test data and computes average error and accuracy.
         Accuracy is measured as percentage of correct predictions.
         Sets model to evaluation mode during testing.
