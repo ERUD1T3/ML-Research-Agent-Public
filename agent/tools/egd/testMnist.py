@@ -2,14 +2,17 @@
 from agent.tools.egd.egd import EGD
 import asyncio
 
+# TODO: debug why it doesn't trivially beat MNIST baseline (Bug!)
+
+
 
 def main():
     '''main of the program'''
 
     debugging = True
-    population_size = 5  # population size, 80 good number
-    generations = 3  # number of epochs
-    epochs = 200
+    population_size = 20  # population size, 80 good number
+    generations = 10  # number of epochs
+    epochs = 100
 
     # run trials
     for trial in range(1):

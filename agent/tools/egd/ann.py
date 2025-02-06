@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.optim as optim
 from typing import List, Tuple, Union
 
+
+# TODO: update to support AdamW and more layer building blocks like BatchNorm, Dropout, etc.
 class ANN(nn.Module):
     """Feed Forward Artificial Neural Network Class using PyTorch.
     
@@ -100,6 +102,7 @@ class ANN(nn.Module):
             lr=self.learning_rate,
             weight_decay=0  # Weight decay handled manually in loss function
         )
+        
     def print_weights(self) -> None:
         """Print the weights of each layer in the PyTorch neural network.
         

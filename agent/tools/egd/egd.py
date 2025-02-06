@@ -1,13 +1,16 @@
 # Imports
-from agent.tools.egd.ann import ANN
+import asyncio
 import random
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-import agent.tools.egd.utils as utils
+from typing import List, Tuple, Optional
+
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from typing import List, Tuple, Optional
-import asyncio
+
+import agent.tools.egd.utils as utils
+from agent.tools.egd.ann import ANN
 
 
 # Evolutionary Gradient Descent
@@ -100,6 +103,9 @@ class EGD:
         self.best: Optional[Tuple[ANN, float, float, dict]] = None
         self.most_acc: Optional[Tuple[ANN, float, float, dict]] = None
         self.log_path = ''
+
+        # ThreadPool for concurrent GPU training
+        self.executor = ThreadPoolExecutor(max_workers=self.population_size)
 
         if self.debug:
             self._print_debug_info()
@@ -232,11 +238,11 @@ class EGD:
             self.hyperparams[n] = hyperparams
 
     async def step(self, net: ANN) -> ANN:
-        """Apply optimization steps to the neural network.
+        """Apply optimization steps to the neural network using a thread pool.
         
         Performs multiple training steps on the network using the current training data
-        and hyperparameters. The network's optimizer and parameters are updated during training.
-        Progress is printed for each epoch.
+        and hyperparameters in a separate thread. The network's optimizer and parameters 
+        are updated during training. Progress is printed for each epoch.
 
         Args:
             net: Neural network instance to train
@@ -244,10 +250,16 @@ class EGD:
         Returns:
             ANN: The trained neural network
         """
-        for epoch in range(self.epochs):
-            total_loss = net.training_step(self.training, batch_size=0.33)
-            print(f'Net #{net.net_id} | Epoch {epoch + 1} | Loss: {total_loss:.4f}')
-        return net
+
+        def train_net(n: ANN) -> ANN:
+            for epoch in range(self.epochs):
+                total_loss = n.training_step(self.training, batch_size=0.25)
+                print(f'Net #{n.net_id} | Epoch {epoch + 1} | Loss: {total_loss:.4f}')
+            return n
+
+        loop = asyncio.get_running_loop()
+        trained_net = await loop.run_in_executor(self.executor, train_net, net)
+        return trained_net
 
     def evaluate(self, net: ANN) -> Tuple[float, float]:
         """Evaluate the performance and accuracy of a neural network.
@@ -285,8 +297,8 @@ class EGD:
     def exploit(self, net: ANN, hyperparams: dict) -> Tuple[ANN, dict]:
         """Exploit better solutions via truncation selection.
         
-        If the given network is among the lower-performing fraction, replaces its architecture and hyperparameters 
-        with those of a randomly chosen top performer.
+        If the given network is among the lower-performing fraction, replaces its architecture
+        and hyperparameters with those of a randomly chosen top performer.
 
         Args:
             net: Neural network to potentially replace
@@ -416,7 +428,7 @@ class EGD:
         """Train the network population using evolutionary optimization.
         
         For each generation:
-          1. Trains and evaluates each network concurrently.
+          1. Trains and evaluates each network concurrently (using a thread pool).
           2. Updates leaderboard rankings.
           3. Performs exploitation and exploration on eligible networks.
           4. Tracks best performing and most accurate networks.
@@ -436,7 +448,7 @@ class EGD:
         for e in range(self.generations):
             print('Generation:', e)
 
-            # Train all networks in parallel
+            # Train all networks in parallel (thread pool tasks)
             tasks = [self.step(net) for net in self.population]
             trained_nets = await asyncio.gather(*tasks)
 
