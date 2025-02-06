@@ -4,7 +4,6 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="jdk" jdkName="llm" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="augmented-population-based-training" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />

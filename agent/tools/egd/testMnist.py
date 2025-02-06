@@ -2,7 +2,13 @@
 from agent.tools.egd.egd import EGD
 import asyncio
 
-# TODO: debug why it doesn't trivially beat MNIST baseline (Bug!)
+# TODO: 
+# 1. debug why it doesn't trivially beat MNIST baseline (Bug!)
+# 2. add more layer building blocks like BatchNorm, Dropout, etc.
+# 3. add support for AdamW optimizer
+# 4. add ability to mix architectures like convs, fcs, attention, etc.
+# 5. add ability to train on multiple GPUs
+# 6. add ability to train on multiple nodes
 
 
 

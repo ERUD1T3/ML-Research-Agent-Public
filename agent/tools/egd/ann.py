@@ -7,7 +7,6 @@ import torch.optim as optim
 from typing import List, Tuple, Union
 
 
-# TODO: update to support AdamW and more layer building blocks like BatchNorm, Dropout, etc.
 class ANN(nn.Module):
     """Feed Forward Artificial Neural Network Class using PyTorch.
     
