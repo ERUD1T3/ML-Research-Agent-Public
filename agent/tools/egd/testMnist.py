@@ -3,6 +3,7 @@ from agent.tools.egd.egd import EGD
 import asyncio
 
 # TODO: 
+# 0. make the egd steps faster, for faster generations ops!!!
 # 1. add a more to increase or decrease the delta in hyperparams changes. a sort of acceleration factor to explore faster.
 # 2. add more layer building blocks like BatchNorm, Dropout, etc.
 # 3. add support for AdamW optimizer
