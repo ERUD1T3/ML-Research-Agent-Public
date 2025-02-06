@@ -3,12 +3,13 @@ from agent.tools.egd.egd import EGD
 import asyncio
 
 # TODO: 
-# 1. debug why it doesn't trivially beat MNIST baseline (Bug!)
+# 1. add a more to increase or decrease the delta in hyperparams changes. a sort of acceleration factor to explore faster.
 # 2. add more layer building blocks like BatchNorm, Dropout, etc.
 # 3. add support for AdamW optimizer
 # 4. add ability to mix architectures like convs, fcs, attention, etc.
 # 5. add ability to train on multiple GPUs
 # 6. add ability to train on multiple nodes
+
 
 
 
