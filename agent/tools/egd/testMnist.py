@@ -17,9 +17,9 @@ def main():
     '''main of the program'''
 
     debugging = True
-    population_size = 20  # population size, 80 good number
-    generations = 10  # number of epochs
-    epochs = 100
+    population_size = 30  # population size, 80 good number
+    generations = 20  # number of epochs
+    epochs = 150
 
     # run trials
     for trial in range(1):

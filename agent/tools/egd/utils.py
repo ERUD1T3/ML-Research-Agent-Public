@@ -39,20 +39,49 @@ def corrupt_data(data, classes, percent):
         
     return data
 
-def log_csv(path, histories, headers):
-    '''log the data to the csv file'''
-    headers = ['e'] + headers
-    # open the file
-    with open(path, 'w') as f:
-        # write the headers
-        f.write(','.join(headers) + '\n')
-        # write the data
-        for h in range(len(histories[0])):
-            line = f'{h},'
-            for hh in range(len(histories)):
-                line += str(histories[hh][h]) + ','
-            f.write(line[:-1] + '\n')
+def log_csv(path: str, histories: list, headers: list) -> None:
+    """Log training histories to a CSV file.
     
+    Creates necessary directories if they don't exist and writes training metrics
+    to a CSV file with epoch numbers and provided headers.
+    
+    Args:
+        path: Path to the output CSV file
+        histories: List of lists containing metric histories to log
+        headers: List of column headers for the metrics
+        
+    Returns:
+        None
+    """
+    import os
+    
+    # Create directory path if it doesn't exist
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
+    # Add epoch column header
+    headers = ['e'] + headers
+    
+    # Open file and write data
+    try:
+        with open(path, 'w') as f:
+            # Write CSV headers
+            f.write(','.join(headers) + '\n')
+            
+            # Write each epoch's metrics
+            for epoch in range(len(histories[0])):
+                # Start line with epoch number
+                line = f'{epoch},'
+                
+                # Add each metric value
+                for metric_history in range(len(histories)):
+                    line += str(histories[metric_history][epoch]) + ','
+                    
+                # Remove trailing comma and write line
+                f.write(line[:-1] + '\n')
+                
+    except IOError as e:
+        print(f"Error writing to {path}: {e}")
+        raise
     # epoch is number of every line
     
 
