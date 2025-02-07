@@ -1,11 +1,11 @@
-
-import math
 import random
+from typing import List, Tuple, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from typing import List, Tuple, Union
-import numpy as np
+
 
 class ANN(nn.Module):
     """Feed Forward Artificial Neural Network Class using PyTorch.
@@ -29,14 +29,15 @@ class ANN(nn.Module):
         optimizer (optim.Adam): Adam optimizer for training
         device (torch.device): Device to run computations on (CPU/GPU)
     """
+
     def __init__(
-        self, 
-        net_id: int,
-        hyperparams: dict,
-        input_units: int, 
-        output_units: int,
-        debug: bool = True,
-        output_activation: nn.Module = nn.Softmax(dim=-1)
+            self,
+            net_id: int,
+            hyperparams: dict,
+            input_units: int,
+            output_units: int,
+            debug: bool = True,
+            output_activation: nn.Module = nn.Softmax(dim=-1)
     ) -> None:
         """Initialize the Artificial Neural Network.
         
@@ -54,14 +55,14 @@ class ANN(nn.Module):
             output_activation: Activation function for output layer (defaults to Softmax)
         """
         super(ANN, self).__init__()
-        
+
         # Set device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # Print available device
         print(f"Using device: {self.device}")
         if torch.cuda.is_available():
             print(f"GPU: {torch.cuda.get_device_name(0)}")
-        
+
         # Store network hyperparameters
         self.net_id = net_id
         self.hidden_units = hyperparams['hidden_units']  # Already numpy array
@@ -77,21 +78,21 @@ class ANN(nn.Module):
         self.output_activation = output_activation
 
         # Build complete network topology: input -> hidden -> output
-        self.topology = np.concatenate(([self.input_units], 
-                                      self.hidden_units,
-                                      [self.output_units]))
+        self.topology = np.concatenate(([self.input_units],
+                                        self.hidden_units,
+                                        [self.output_units]))
 
         # Create network layers
         layers = []
-        for i in range(len(self.topology)-1):
+        for i in range(len(self.topology) - 1):
             # Add linear layer
-            layers.append(nn.Linear(self.topology[i], self.topology[i+1]))
+            layers.append(nn.Linear(self.topology[i], self.topology[i + 1]))
             # Add activation after all layers
-            if i < len(self.topology)-2:
+            if i < len(self.topology) - 2:
                 layers.append(self.activation)
             else:
                 layers.append(self.output_activation)
-        
+
         # Create sequential model from layers and move to device
         self.model = nn.Sequential(*layers).to(self.device)
 
@@ -104,7 +105,7 @@ class ANN(nn.Module):
 
         # number of parameters
         self.n_params = self.num_params()
-        
+
     def print_weights(self) -> None:
         """Print the weights of each layer in the PyTorch neural network.
         
@@ -121,13 +122,13 @@ class ANN(nn.Module):
             if 'weight' in name:
                 print(f'\n{name}:')
                 weights = param.data
-                
+
                 # Print weights row by row
                 for i in range(weights.size(0)):
                     print(f'{i}: ', end='')
                     # Print each weight in the row
                     for j in range(weights.size(1)):
-                        print(f'{weights[i,j].item():.2f} ', end='')
+                        print(f'{weights[i, j].item():.2f} ', end='')
                     print()
 
     def print_network(self) -> None:
@@ -163,24 +164,24 @@ class ANN(nn.Module):
         """
         # Set training hyperparameters
         self.learning_rate = hyperparams['learning_rate']
-        self.momentum = hyperparams['momentum'] 
+        self.momentum = hyperparams['momentum']
         self.decay = hyperparams['decay']
         self.hidden_units = hyperparams['hidden_units']
 
         # Build full topology: input layer + hidden layers + output layer
         self.topology = [self.input_units] + \
-            hyperparams['hidden_units'] + \
-            [self.output_units]
-        
+                        hyperparams['hidden_units'] + \
+                        [self.output_units]
+
         # Rebuild model with new topology
         layers = []
-        for i in range(len(self.topology)-1):
+        for i in range(len(self.topology) - 1):
             # Add linear layer between each pair of adjacent layers
-            layers.append(nn.Linear(self.topology[i], self.topology[i+1]))
+            layers.append(nn.Linear(self.topology[i], self.topology[i + 1]))
             # Add activation after all but the final layer
-            if i < len(self.topology)-2:
+            if i < len(self.topology) - 2:
                 layers.append(self.activation)
-        
+
         # Create new sequential model with updated architecture and move to device
         self.model = nn.Sequential(*layers).to(self.device)
 
@@ -191,7 +192,7 @@ class ANN(nn.Module):
             momentum=self.momentum,
             weight_decay=0  # Weight decay handled manually in loss function
         )
-    
+
     def num_params(self) -> int:
         """Calculate total number of trainable parameters in the PyTorch model.
         
@@ -220,7 +221,7 @@ class ANN(nn.Module):
         """
         # Use default filename if none provided
         filename = filename or 'model.pt'
-        
+
         # Save model state dictionary using PyTorch's save
         torch.save(self.model.state_dict(), filename)
 
@@ -242,10 +243,10 @@ class ANN(nn.Module):
         """
         # Load the saved state dictionary using PyTorch's load
         state_dict = torch.load(filename, map_location=self.device)
-        
+
         # Load the state dictionary into the model
         self.model.load_state_dict(state_dict)
-        
+
         # Set model to evaluation mode
         self.model.eval()
 
@@ -267,7 +268,7 @@ class ANN(nn.Module):
         # Flatten input if needed (e.g. for image data)
         if len(x.shape) > 2:
             x = x.view(x.size(0), -1)
-            
+
         # Move input to device and forward pass through sequential model
         x = x.to(self.device)
         return self.model(x)
@@ -288,20 +289,20 @@ class ANN(nn.Module):
         """
         # Set model to evaluation mode
         self.model.eval()
-        
+
         # Make predictions using forward pass
         with torch.no_grad():
             predictions = self.forward(instance)
-            
+
         return predictions
 
     def loss(
-        self,
-        target: torch.Tensor,
-        output: torch.Tensor,
-        no_decay: bool = False,
-        loss_fn: torch.nn.Module = nn.CrossEntropyLoss(),
-        reduction: str = 'mean'
+            self,
+            target: torch.Tensor,
+            output: torch.Tensor,
+            no_decay: bool = False,
+            loss_fn: torch.nn.Module = nn.CrossEntropyLoss(),
+            reduction: str = 'mean'
     ) -> torch.Tensor:
         """Compute the loss for the neural network.
         
@@ -322,11 +323,11 @@ class ANN(nn.Module):
         """
         # Move target to device and calculate main loss
         target = target.to(self.device)
-        
+
         # Set reduction scheme for loss function
         if hasattr(loss_fn, 'reduction'):
             loss_fn.reduction = reduction
-            
+
         loss = loss_fn(output, target)
 
         if no_decay:
@@ -336,14 +337,15 @@ class ANN(nn.Module):
         l2_reg = torch.tensor(0., requires_grad=True).to(self.device)
         for param in self.model.parameters():
             l2_reg = l2_reg + torch.norm(param, p=2)
-        
+
         # Add weight decay term scaled by number of parameters
         n_params = sum(p.numel() for p in self.model.parameters())
         loss += self.decay * (l2_reg / (2 * n_params))
 
         return loss
 
-    def training_step(self, train_data: List[Tuple[torch.Tensor, torch.Tensor]], batch_size: Union[int, float, None] = 0.2) -> float:
+    def training_step(self, train_data: List[Tuple[torch.Tensor, torch.Tensor]],
+                      batch_size: Union[int, float, None] = 0.2) -> float:
         """Perform one training step on the given training data using minibatches.
         
         Takes training examples, splits into minibatches, performs forward and backward passes,
@@ -446,13 +448,14 @@ class ANN(nn.Module):
         for epoch in range(epochs):
             # Perform one training step on all data
             avg_loss = self.training_step(train_data)
-            
+
             # if self.debug:
-            print(f'Epoch {epoch+1} | Net #{self.net_id}\'s loss: {avg_loss:.4f}')
+            print(f'Epoch {epoch + 1} | Net #{self.net_id}\'s loss: {avg_loss:.4f}')
 
         return avg_loss
 
-    def test(self, test_data: List[Tuple[torch.Tensor, torch.Tensor]], acc_report: bool = False) -> Union[float, Tuple[float, float]]:
+    def test(self, test_data: List[Tuple[torch.Tensor, torch.Tensor]], acc_report: bool = False) -> Union[
+        float, Tuple[float, float]]:
         """Evaluate the neural network on test data.
         
         Performs forward passes on test data and computes average error and accuracy.
@@ -475,20 +478,20 @@ class ANN(nn.Module):
 
         # Set model to evaluation mode
         self.model.eval()
-        
+
         # Stack all inputs and targets into tensors
         inputs = torch.stack([x[0] for x in test_data])
         targets = torch.stack([x[1] for x in test_data])
-        
+
         # Disable gradient computation for evaluation
         with torch.no_grad():
             # Forward pass on all data at once
             outputs = self.forward(inputs)
-            
+
             # Compute total error using vectorized operations
             errors = self.loss(targets, outputs, reduction='none')
             avg_error = errors.mean().item()
-            
+
             if acc_report:
                 # Get predicted and target classes for all samples at once
                 _, predicted = torch.max(outputs, 1)
@@ -496,5 +499,5 @@ class ANN(nn.Module):
                 # Calculate accuracy using tensor operations
                 accuracy = (predicted == target_classes).float().mean().item()
                 return avg_error, accuracy
-            
+
         return avg_error
