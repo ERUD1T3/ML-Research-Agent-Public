@@ -21,9 +21,10 @@ def main():
     '''main of the program'''
 
     debugging = True
-    population_size = 20  # population size, 80 good number
-    generations = 3  # number of epochs
-    epochs = 50
+    population_size = 26 # population size, 80 good number
+    generations = 9  # number of epochs
+    epochs = 100
+
 
     # run trials
     for trial in range(1):
@@ -54,10 +55,11 @@ def main():
         best_net.print_network()
         # test the artificial neural network
         print('\nTesting the NN...\n')
-        accuracy = 100 * best_net.test(egd.testing)
+        accuracy = 100 * best_net.test(egd.testing, acc_report=True)[1]
         n_params = best_net.num_params()
         print('\nTesting complete\n')
         print(f'\nAccuracy: {accuracy:.2f}%\n')
+
 
         print(f'Number of parameters: {n_params}\n')
 
@@ -66,7 +68,7 @@ def main():
         most_acc.print_network()
         # test the artificial neural network
         print('\nTesting the NN...\n')
-        accuracy = 100 * most_acc.test(egd.testing)
+        accuracy = 100 * most_acc.test(egd.testing, acc_report=True)[1]
         n_params = most_acc.num_params()
         print('\nTesting complete\n')
         print(f'\nAccuracy: {accuracy:.2f}%\n')
