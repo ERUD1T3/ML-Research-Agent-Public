@@ -1,6 +1,7 @@
 # imports
 from agent.tools.egd.egd import EGD
 import asyncio
+import time
 
 # TODO: 
 # 0. make the egd steps faster, for faster generations ops!!!
@@ -10,6 +11,9 @@ import asyncio
 # 4. add ability to mix architectures like convs, fcs, attention, etc.
 # 5. add ability to train on multiple GPUs
 # 6. add ability to train on multiple nodes
+# 7. number of epochs should be stored in the log file
+# 8. support custom layers, customer datasets, and custom metrics, custom fitness 
+# 9. add a way to see performance over size of model and being able to select models based on their ID
 
 
 
@@ -18,9 +22,9 @@ def main():
     '''main of the program'''
 
     debugging = True
-    population_size = 30  # population size, 80 good number
-    generations = 20  # number of epochs
-    epochs = 150
+    population_size = 20  # population size, 80 good number
+    generations = 3  # number of epochs
+    epochs = 50
 
     # run trials
     for trial in range(1):
@@ -30,12 +34,22 @@ def main():
 
         print('Trial: ', trial)
         print('\nRunning the population based training\n')
+        
+        # Start timing
+        start_time = time.time()
+        
         # asyncio.run() executes the coroutine egd.train() in an event loop,
         # allowing concurrent training of multiple networks in the population
         best_net, most_acc = asyncio.run(egd.train())
+        
+        # End timing
+        end_time = time.time()
+        training_time = end_time - start_time
+        
         print('\nPopulation Based Training complete\n')
-        # create the artificial neural network
-
+        print(f'Training completed in {training_time:.2f} seconds')
+        print(f'Configuration: Population size={population_size}, Generations={generations}, Epochs={epochs}')
+        
         # printing the neural network
         print('\nPrinting learned weights of best\n')
         best_net.print_network()

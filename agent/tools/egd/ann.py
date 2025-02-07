@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from typing import List, Tuple, Union
-
+import numpy as np
 
 class ANN(nn.Module):
     """Feed Forward Artificial Neural Network Class using PyTorch.
@@ -64,7 +64,7 @@ class ANN(nn.Module):
         
         # Store network hyperparameters
         self.net_id = net_id
-        self.hidden_units = hyperparams['hidden_units']
+        self.hidden_units = hyperparams['hidden_units']  # Already numpy array
         self.learning_rate = hyperparams['learning_rate']
         self.momentum = hyperparams['momentum']
         self.decay = hyperparams['decay']
@@ -77,9 +77,9 @@ class ANN(nn.Module):
         self.output_activation = output_activation
 
         # Build complete network topology: input -> hidden -> output
-        self.topology = [self.input_units] + \
-                        hyperparams['hidden_units'] + \
-                        [self.output_units]
+        self.topology = np.concatenate(([self.input_units], 
+                                      self.hidden_units,
+                                      [self.output_units]))
 
         # Create network layers
         layers = []
@@ -101,6 +101,9 @@ class ANN(nn.Module):
             lr=self.learning_rate,
             weight_decay=0  # Weight decay handled manually in loss function
         )
+
+        # number of parameters
+        self.n_params = self.num_params()
         
     def print_weights(self) -> None:
         """Print the weights of each layer in the PyTorch neural network.
@@ -297,7 +300,8 @@ class ANN(nn.Module):
         target: torch.Tensor,
         output: torch.Tensor,
         no_decay: bool = False,
-        loss_fn: torch.nn.Module = nn.CrossEntropyLoss()
+        loss_fn: torch.nn.Module = nn.CrossEntropyLoss(),
+        reduction: str = 'mean'
     ) -> torch.Tensor:
         """Compute the loss for the neural network.
         
@@ -310,12 +314,19 @@ class ANN(nn.Module):
             output: Model output tensor of shape (batch_size, output_units) 
             no_decay: If True, skip L2 regularization term
             loss_fn: Loss function to use, defaults to CrossEntropyLoss
+            reduction: Specifies the reduction to apply to the loss:
+                      'none' | 'mean' | 'sum'. Default: 'mean'
 
         Returns:
             torch.Tensor: Scalar tensor containing the computed loss
         """
         # Move target to device and calculate main loss
         target = target.to(self.device)
+        
+        # Set reduction scheme for loss function
+        if hasattr(loss_fn, 'reduction'):
+            loss_fn.reduction = reduction
+            
         loss = loss_fn(output, target)
 
         if no_decay:
@@ -444,7 +455,6 @@ class ANN(nn.Module):
     def test(self, test_data: List[Tuple[torch.Tensor, torch.Tensor]], acc_report: bool = False) -> Union[float, Tuple[float, float]]:
         """Evaluate the neural network on test data.
         
-
         Performs forward passes on test data and computes average error and accuracy.
         Accuracy is measured as percentage of correct predictions.
         Sets model to evaluation mode during testing.
@@ -466,36 +476,25 @@ class ANN(nn.Module):
         # Set model to evaluation mode
         self.model.eval()
         
-        total_error = 0.0
-        correct = 0
-        total = 0
+        # Stack all inputs and targets into tensors
+        inputs = torch.stack([x[0] for x in test_data])
+        targets = torch.stack([x[1] for x in test_data])
         
         # Disable gradient computation for evaluation
         with torch.no_grad():
-            for inputs, targets in test_data:
-                # Forward pass
-                outputs = self.forward(inputs)
-                
-                # Compute error using MSE loss without weight decay
-                error = self.loss(targets, outputs).item()
-                total_error += error
-                
-                if acc_report:
-                    # Get predicted class (max probability)
-                    _, predicted = torch.max(outputs, 0)
-                    # Get target class
-                    _, target_class = torch.max(targets, 0)
-                    # Update accuracy counts
-                    total += 1
-                    correct += (predicted == target_class).item()
-
-        # Calculate average error
-        avg_error = total_error / len(test_data)
-        
-        if acc_report:
-            # Calculate accuracy as percentage correct
-            accuracy = correct / total
-            return avg_error, accuracy
+            # Forward pass on all data at once
+            outputs = self.forward(inputs)
             
-        # Return just error by default
+            # Compute total error using vectorized operations
+            errors = self.loss(targets, outputs, reduction='none')
+            avg_error = errors.mean().item()
+            
+            if acc_report:
+                # Get predicted and target classes for all samples at once
+                _, predicted = torch.max(outputs, 1)
+                _, target_classes = torch.max(targets, 1)
+                # Calculate accuracy using tensor operations
+                accuracy = (predicted == target_classes).float().mean().item()
+                return avg_error, accuracy
+            
         return avg_error
