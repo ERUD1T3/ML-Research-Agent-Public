@@ -52,7 +52,7 @@ def main():
         
         # printing the neural network
         print('\nPrinting learned weights of best\n')
-        best_net.print_network()
+        # best_net.print_network()
         # test the artificial neural network
         print('\nTesting the NN...\n')
         accuracy = 100 * best_net.test(egd.testing, acc_report=True)[1]
@@ -65,7 +65,7 @@ def main():
 
         # printing the neural network
         print('\nPrinting learned weights of the most accurate\n')
-        most_acc.print_network()
+        # most_acc.print_network()
         # test the artificial neural network
         print('\nTesting the NN...\n')
         accuracy = 100 * most_acc.test(egd.testing, acc_report=True)[1]
