@@ -14,8 +14,7 @@ import time
 # 7. number of epochs should be stored in the log file
 # 8. support custom layers, customer datasets, and custom metrics, custom fitness 
 # 9. add a way to see performance over size of model and being able to select models based on their ID
-
-
+# 10. Integrate it more with the agent framework
 
 
 def main():
